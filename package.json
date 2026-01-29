@@ -1,0 +1,23 @@
+{
+  "name": "file-manager-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "文件管理系统 - Monorepo",
+  "scripts": {
+    "dev:api": "cd apps/api && go run cmd/server/main.go",
+    "dev:web": "cd apps/web && pnpm dev",
+    "dev": "concurrently \"pnpm:dev:api\" \"pnpm:dev:web\"",
+    "build:api": "cd apps/api && go build -o ../../bin/server cmd/server/main.go",
+    "build:web": "cd apps/web && pnpm build",
+    "build": "pnpm:build:web && pnpm:build:api",
+    "install:web": "cd apps/web && pnpm install",
+    "clean": "rm -rf apps/web/node_modules apps/web/dist apps/api/bin"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

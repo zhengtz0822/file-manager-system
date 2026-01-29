@@ -1,0 +1,41 @@
+server:
+  port: 8080
+  mode: debug  # debug/release
+
+database:
+  host: localhost
+  port: 3306
+  database: file_manager
+  username: root
+  password: "123456"
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600  # seconds
+
+storage:
+  base_path: "./uploads"
+  chunk_path: "./uploads/chunks"
+  document_path: "./uploads/documents"
+  max_file_size: 5368709120  # 5GB
+  chunk_size: 5242880  # 5MB
+  allowed_extensions:
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - pdf
+    - doc
+    - docx
+    - xls
+    - xlsx
+    - ppt
+    - pptx
+    - txt
+    - md
+
+jwt:
+  secret: "your-secret-key-change-this-in-production"
+  expire_hours: 24
+
+upload:
+  chunk_expire_hours: 24  # 分片上传过期时间
