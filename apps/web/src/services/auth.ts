@@ -1,39 +1,38 @@
-import request from './api';
+// @ts-ignore
+/* eslint-disable */
+import { request } from '@umijs/max';
 
-export interface LoginRequest {
-  username: string;
-  password: string;
+/** 登录接口 POST /api/v1/auth/login */
+export async function login(body: API.LoginParams, options?: { [key: string]: any }) {
+  return request<API.LoginResult>('/api/v1/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: {
+      username: body.username,
+      password: body.password,
+    },
+    skipErrorHandler: false,
+    ...(options || {}),
+  });
 }
 
-export interface LoginResponse {
-  token: string;
-  user: {
-    id: number;
-    username: string;
-  };
+/** 获取当前用户 GET /api/v1/user/me */
+export async function currentUser(options?: { [key: string]: any }) {
+  return request<{
+    data: API.CurrentUser;
+  }>('/api/v1/user/me', {
+    method: 'GET',
+    skipErrorHandler: true,
+    ...(options || {}),
+  });
 }
 
-export interface RegisterRequest {
-  username: string;
-  password: string;
-}
-
-// 登录
-export async function login(data: LoginRequest): Promise<LoginResponse> {
-  return request.post('/auth/login', data);
-}
-
-// 注册
-export async function register(data: RegisterRequest): Promise<void> {
-  return request.post('/auth/register', data);
-}
-
-// 登出
-export async function logout(): Promise<void> {
-  return request.post('/auth/logout');
-}
-
-// 获取当前用户信息
-export async function getCurrentUser(): Promise<LoginResponse['user']> {
-  return request.get('/user/me');
+/** 退出登录接口 POST /api/v1/auth/logout */
+export async function outLogin(options?: { [key: string]: any }) {
+  return request<Record<string, any>>('/api/v1/auth/logout', {
+    method: 'POST',
+    ...(options || {}),
+  });
 }

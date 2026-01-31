@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	"file-manager-service/internal/pkg/jwt"
 	"file-manager-service/internal/pkg/storage"
+	"file-manager-service/internal/repository"
 	"file-manager-service/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -377,10 +380,39 @@ func (h *DocumentHandler) PreviewDocument(c *gin.Context) {
 
 // GetCurrentUser 获取当前用户
 func (h *DocumentHandler) GetCurrentUser(c *gin.Context) {
-	claims, _ := c.Get("claims")
+	claimsInterface, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, Response{
+			Code:    401,
+			Message: "未授权",
+		})
+		return
+	}
+
+	claims := claimsInterface.(*jwt.Claims)
+	userRepo := repository.NewUserRepository()
+	user, err := userRepo.FindByID(claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, Response{
+			Code:    404,
+			Message: "用户不存在",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// 构造前端需要的用户数据格式
+	userData := map[string]interface{}{
+		"id":         user.ID,
+		"userid":     fmt.Sprintf("%d", user.ID), // 前端需要的 userid
+		"name":       user.Username,               // 前端需要的 name 字段
+		"username":   user.Username,
+		"created_at": user.CreatedAt,
+	}
+
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
 		Message: "获取成功",
-		Data:    claims,
+		Data:    userData,
 	})
 }

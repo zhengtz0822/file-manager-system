@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"file-manager-service/internal/model"
 	"file-manager-service/internal/pkg/jwt"
@@ -30,7 +31,7 @@ type LoginRequest struct {
 // LoginResponse 登录响应
 type LoginResponse struct {
 	Token string      `json:"token"`
-	User  *model.User `json:"user"`
+	User  interface{} `json:"user"` // 改为 interface{} 以支持自定义格式
 }
 
 // Login 用户登录
@@ -52,9 +53,18 @@ func (s *AuthService) Login(req *LoginRequest) (*LoginResponse, error) {
 		return nil, err
 	}
 
+	// 构造前端需要的用户数据格式
+	userData := map[string]interface{}{
+		"id":         user.ID,
+		"userid":     fmt.Sprintf("%d", user.ID), // 前端需要的 userid
+		"name":       user.Username,               // 前端需要的 name 字段
+		"username":   user.Username,
+		"created_at": user.CreatedAt,
+	}
+
 	return &LoginResponse{
 		Token: token,
-		User:  user,
+		User:  userData,
 	}, nil
 }
 

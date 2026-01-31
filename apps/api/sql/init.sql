@@ -5,7 +5,7 @@ USE file_manager;
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
     username VARCHAR(50) UNIQUE NOT NULL COMMENT '用户名',
     password VARCHAR(255) NOT NULL COMMENT '加密密码',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
@@ -48,5 +48,5 @@ CREATE TABLE IF NOT EXISTS upload_chunks (
 -- 插入测试用户（密码: admin123, 使用 bcrypt 加密）
 -- 注意：这个密码是测试用的，生产环境请修改
 INSERT INTO users (username, password) VALUES
-('admin', '$2a$10$8X7OqZKz8YH8qGZ8qGZ8qOH8qGZ8qGZ8qGZ8qGZ8qGZ8qGZ8qGZ8q')
+('admin', '$2a$10$7a.9QIsXq8IpU8PEUw6sp.ynvZ.eH2NMh.5Lu/6LtnUZ9RMm4DuYG')
 ON DUPLICATE KEY UPDATE username=username;
