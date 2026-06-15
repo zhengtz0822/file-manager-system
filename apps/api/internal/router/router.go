@@ -1,10 +1,13 @@
 package router
 
 import (
+	"file-manager-service/internal/config"
 	"file-manager-service/internal/handler"
 	"file-manager-service/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // SetupRouter 设置路由
@@ -30,6 +33,7 @@ func SetupRouter() *gin.Engine {
 		{
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/register", authHandler.Register)
+			auth.POST("/app-token", authHandler.GetAppToken) // 应用获取访问令牌
 			auth.POST("/logout", middleware.AuthMiddleware(), handler.Logout)
 		}
 
@@ -40,6 +44,9 @@ func SetupRouter() *gin.Engine {
 		documents := v1.Group("/documents")
 		documents.Use(authMiddleware)
 		{
+			// 单文件上传（适用于小文件）
+			documents.POST("/upload", docHandler.UploadSingleFile)
+
 			// 分片上传
 			documents.POST("/chunks/init", docHandler.InitUpload)
 			documents.POST("/chunks/upload", docHandler.UploadChunk)
@@ -58,6 +65,24 @@ func SetupRouter() *gin.Engine {
 
 		// 用户信息
 		v1.GET("/user/me", authMiddleware, docHandler.GetCurrentUser)
+
+		// 应用管理路由（需要认证）
+		appHandler := handler.NewApplicationHandler()
+		applications := v1.Group("/applications")
+		applications.Use(authMiddleware)
+		{
+			applications.POST("", appHandler.CreateApplication)
+			applications.GET("", appHandler.ListApplications)
+			applications.GET("/options", appHandler.GetApplicationOptions) // 获取应用选项（不含敏感信息）
+			applications.GET("/:id", appHandler.GetApplication)
+			applications.PUT("/:id/status", appHandler.UpdateApplicationStatus)
+			applications.DELETE("/:id", appHandler.DeleteApplication)
+		}
+	}
+
+	// Swagger 文档（根据配置启用）
+	if config.GlobalConfig.Swagger.Enabled {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
 	return r

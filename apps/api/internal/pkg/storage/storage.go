@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"file-manager-service/internal/config"
 )
@@ -140,9 +141,44 @@ func GetFileMD5(filePath string) (string, error) {
 }
 
 // GenerateStoragePath 生成存储路径
-func GenerateStoragePath(fileID string, filename string) string {
-	// 使用文件ID的前两位作为子目录，避免单个目录文件过多
-	subDir := fileID[:2]
+// account: 应用账号或用户名
+// fileID: 文档ID
+// filename: 文件名
+func GenerateStoragePath(account string, fileID string, filename string) string {
+	// 生成年月路径: yyyy-MM
+	yearMonth := time.Now().Format("2006-01")
 	ext := filepath.Ext(filename)
-	return filepath.Join(cfg.DocumentPath, subDir, fileID+ext)
+	// 路径格式: uploads/应用账号/yyyy-MM/文档id
+	return filepath.Join(cfg.DocumentPath, account, yearMonth, fileID+ext)
+}
+
+// SaveSingleFile 保存单个文件（适用于小文件直接上传）
+func SaveSingleFile(account string, fileID string, filename string, file *multipart.FileHeader) error {
+	// 生成存储路径
+	storagePath := GenerateStoragePath(account, fileID, filename)
+
+	// 创建目录
+	yearMonth := time.Now().Format("2006-01")
+	dirPath := filepath.Join(cfg.DocumentPath, account, yearMonth)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return err
+	}
+
+	// 打开上传的文件
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	// 创建目标文件
+	dst, err := os.Create(storagePath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	// 复制文件内容
+	_, err = io.Copy(dst, src)
+	return err
 }

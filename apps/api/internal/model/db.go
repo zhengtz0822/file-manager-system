@@ -44,5 +44,6 @@ func AutoMigrate() error {
 		&User{},
 		&Document{},
 		&UploadChunk{},
+		&Application{},
 	)
 }

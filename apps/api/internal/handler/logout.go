@@ -15,7 +15,7 @@ import (
 // @Tags 认证
 // @Security Bearer
 // @Success 200 {object} Response
-// @Router /api/v1/auth/logout [post]
+// @Router /auth/logout [post]
 func Logout(c *gin.Context) {
 	// 获取 Authorization header
 	authHeader := c.GetHeader("Authorization")

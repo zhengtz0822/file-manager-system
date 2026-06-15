@@ -113,17 +113,19 @@ configs/config.yaml   # Configuration file
 
 ```
 src/
-├── pages/            # Page components
-│   ├── Login/        # Authentication pages
-│   └── Document/     # Document management pages
-├── services/         # API service layer
-│   ├── api.ts        # Base Axios client with interceptors
-│   ├── auth.ts       # Auth API calls
-│   └── document.ts   # Document API calls
-├── components/       # Reusable components
-├── hooks/            # Custom React hooks
-├── utils/            # Utility functions
-└── types/            # TypeScript types
+├── features/         # Feature modules (recommended for new features)
+│   └── document/     # Document system features
+│       └── applications/  # Application management feature
+├── routes/           # TanStack Router file-based routes
+│   └── _authenticated/  # Protected routes
+│       └── document/     # Document system routes
+│           └── applications/  # Application management routes
+├── api/              # API service layer
+│   └── document/     # Document system API calls
+│       └── application.ts  # Application API
+├── components/       # Reusable UI components
+├── lib/              # Utilities (api-client, etc.)
+└── stores/           # State management (Zustand)
 ```
 
 **API Proxy**: Vite proxies `/api` requests to `http://localhost:8080` in development ([vite.config.ts](apps/web/vite.config.ts))
@@ -169,6 +171,7 @@ Large files use **chunked upload** (5MB chunks, max 5GB):
 - **User**: id, username, password (bcrypt hashed)
 - **Document**: id (UUID), user_id, file_name, file_size, file_path, created_at
 - **Chunk**: id, upload_id (UUID), chunk_number, chunk_path, file_size
+- **Application**: id, app_name, app_account (auto-generated), app_secret (auto-generated), status
 
 ### Supported File Types
 Images: jpg, jpeg, png, gif | Documents: pdf, doc, docx, xls, xlsx, ppt, pptx | Text: txt, md
@@ -184,3 +187,60 @@ cd apps/api && go get <package> && go mod tidy
 - Node.js 18+
 - pnpm 8+
 - MySQL 8.0+
+
+## Development Standards
+
+### Code Organization for New Features
+
+When adding new features, follow this directory structure:
+
+#### Backend (apps/api)
+```
+internal/
+├── model/            # Add new model here (e.g., application.go)
+├── repository/       # Add data access layer (e.g., application.go)
+├── service/          # Add business logic (e.g., application.go)
+├── handler/          # Add HTTP handlers (e.g., application.go)
+└── router/           # Register routes in router.go
+```
+
+#### Frontend (apps/web)
+```
+src/
+├── api/              # API service layer
+│   └── {module}/     # Module directory (e.g., document/)
+│       └── {feature}/   # Feature API directory (e.g., application/)
+│           ├── index.ts    # API methods (main export)
+│           └── types.ts    # TypeScript types
+├── features/         # Feature modules
+│   └── {module}/     # Module directory (e.g., document/)
+│       └── {feature}/   # Feature directory (e.g., applications/)
+│           ├── index.tsx       # Main feature component
+│           └── components/     # Feature sub-components
+├── routes/           # TanStack Router file-based routes
+│   └── _authenticated/
+│       └── {module}/     # Module routes (e.g., document/)
+│           └── {feature}/   # Feature routes (e.g., applications/)
+│               └── index.tsx
+```
+
+**Example**: For "Application Management" in the document system:
+- API: `src/api/document/application/` (directory with index.ts and types.ts)
+- Feature: `src/features/document/applications/index.tsx`
+- Route: `src/routes/_authenticated/document/applications/index.tsx`
+
+### API Response Format
+All API responses should follow this structure:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { ... }
+}
+```
+
+### Database Changes
+When modifying database schema:
+1. Update `apps/api/sql/init.sql` with table changes
+2. Update `apps/api/internal/model/*.go` with corresponding models
+3. Update `apps/api/internal/model/db.go` AutoMigrate() to include new models

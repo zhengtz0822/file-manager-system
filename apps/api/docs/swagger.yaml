@@ -1,0 +1,717 @@
+basePath: /api/v1
+definitions:
+  handler.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  model.Document:
+    properties:
+      created_at:
+        type: string
+      file_extension:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      id:
+        type: string
+      md5_hash:
+        type: string
+      status:
+        type: integer
+      storage_path:
+        type: string
+      updated_at:
+        type: string
+      upload_id:
+        type: string
+    type: object
+  service.AppTokenRequest:
+    properties:
+      app_account:
+        type: string
+      app_secret:
+        type: string
+    required:
+    - app_account
+    - app_secret
+    type: object
+  service.AppTokenResponse:
+    properties:
+      app: {}
+      token:
+        type: string
+    type: object
+  service.CompleteUploadRequest:
+    properties:
+      account:
+        description: 应用账号或用户名
+        type: string
+      upload_id:
+        type: string
+    required:
+    - account
+    - upload_id
+    type: object
+  service.CompleteUploadResponse:
+    properties:
+      document_id:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+    type: object
+  service.CreateApplicationRequest:
+    properties:
+      app_name:
+        type: string
+    required:
+    - app_name
+    type: object
+  service.CreateApplicationResponse:
+    properties:
+      app_account:
+        type: string
+      app_name:
+        type: string
+      app_secret:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      status:
+        type: integer
+    type: object
+  service.InitUploadRequest:
+    properties:
+      chunk_size:
+        type: integer
+      file_name:
+        type: string
+      file_size:
+        type: integer
+    required:
+    - chunk_size
+    - file_name
+    - file_size
+    type: object
+  service.InitUploadResponse:
+    properties:
+      chunk_size:
+        type: integer
+      file_size:
+        type: integer
+      total_chunks:
+        type: integer
+      upload_id:
+        type: string
+    type: object
+  service.ListApplicationsResponse:
+    properties:
+      applications:
+        items:
+          $ref: '#/definitions/service.CreateApplicationResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.ListDocumentsResponse:
+    properties:
+      documents:
+        items:
+          $ref: '#/definitions/model.Document'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  service.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        description: 改为 interface{} 以支持自定义格式
+    type: object
+  service.RegisterRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  service.UploadSingleFileResponse:
+    properties:
+      document_id:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@filemanager.com
+    name: API Support
+    url: http://www.swagger.io/support
+  description: 文件管理系统后端 API，支持大文件分片上传、下载和预览
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: 文件管理系统 API
+  version: "1.0"
+paths:
+  /applications:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取应用列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListApplicationsResponse'
+              type: object
+      summary: 获取应用列表
+      tags:
+      - Application
+    post:
+      consumes:
+      - application/json
+      description: 创建新应用，系统自动生成应用账号和密钥
+      parameters:
+      - description: 应用信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateApplicationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.CreateApplicationResponse'
+              type: object
+      summary: 创建应用
+      tags:
+      - Application
+  /applications/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除应用
+      parameters:
+      - description: 应用ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 删除应用
+      tags:
+      - Application
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取应用详情
+      parameters:
+      - description: 应用ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.CreateApplicationResponse'
+              type: object
+      summary: 获取应用详情
+      tags:
+      - Application
+  /applications/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 启用或禁用应用
+      parameters:
+      - description: 应用ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 更新应用状态
+      tags:
+      - Application
+  /auth/app-token:
+    post:
+      consumes:
+      - application/json
+      description: 外部应用使用应用账号和密钥获取访问令牌，用于调用需要认证的 API
+      parameters:
+      - description: 应用认证信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AppTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取令牌成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AppTokenResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "401":
+          description: 应用认证失败（应用不存在、密钥错误或应用已禁用）
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 应用获取访问令牌
+      tags:
+      - 认证
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码登录系统，获取访问令牌
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.LoginResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "401":
+          description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 用户登录
+      tags:
+      - 认证
+  /auth/logout:
+    post:
+      description: 撤销当前 Token
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      security:
+      - Bearer: []
+      summary: 注销登录
+      tags:
+      - 认证
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户账号
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: 参数错误或用户已存在
+          schema:
+            $ref: '#/definitions/handler.Response'
+      summary: 用户注册
+      tags:
+      - 认证
+  /documents:
+    get:
+      description: 分页获取文档列表，支持关键词搜索
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListDocumentsResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取文档列表
+      tags:
+      - 文档管理
+  /documents/{id}:
+    delete:
+      description: 删除指定文档
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      security:
+      - Bearer: []
+      summary: 删除文档
+      tags:
+      - 文档管理
+    get:
+      description: 根据ID获取文档详细信息
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Document'
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取文档信息
+      tags:
+      - 文档管理
+  /documents/{id}/download:
+    get:
+      description: 下载指定文档
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - Bearer: []
+      summary: 下载文档
+      tags:
+      - 文档访问
+  /documents/{id}/preview:
+    get:
+      description: 在线预览文档（支持图片和PDF）
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      - application/pdf
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - Bearer: []
+      summary: 预览文档
+      tags:
+      - 文档访问
+  /documents/chunks/{upload_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 取消分片上传并清理临时文件
+      parameters:
+      - description: 上传ID
+        in: path
+        name: upload_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      security:
+      - Bearer: []
+      summary: 取消上传
+      tags:
+      - 文档上传
+  /documents/chunks/complete:
+    post:
+      consumes:
+      - application/json
+      description: 合并所有分片并完成上传
+      parameters:
+      - description: 完成上传信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CompleteUploadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.CompleteUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: 完成上传
+      tags:
+      - 文档上传
+  /documents/chunks/init:
+    post:
+      consumes:
+      - application/json
+      description: 初始化一个大文件分片上传
+      parameters:
+      - description: 上传信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.InitUploadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.InitUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: 初始化分片上传
+      tags:
+      - 文档上传
+  /documents/chunks/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传单个分片
+      parameters:
+      - description: 上传ID
+        in: formData
+        name: upload_id
+        required: true
+        type: string
+      - description: 分片序号
+        in: formData
+        name: chunk_number
+        required: true
+        type: integer
+      - description: 分片文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+      security:
+      - Bearer: []
+      summary: 上传分片
+      tags:
+      - 文档上传
+  /documents/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 直接上传单个文件（适用于小文件）
+      parameters:
+      - description: 文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UploadSingleFileResponse'
+              type: object
+        "400":
+          description: 参数错误或文件类型不支持
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "413":
+          description: 文件大小超过限制
+          schema:
+            $ref: '#/definitions/handler.Response'
+      security:
+      - Bearer: []
+      summary: 单文件上传
+      tags:
+      - 文档上传
+securityDefinitions:
+  Bearer:
+    description: 请输入 Bearer {token} 格式的 Token，例如：Bearer eyJhbGc...
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

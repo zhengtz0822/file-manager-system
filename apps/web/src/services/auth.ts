@@ -1,38 +1,43 @@
-// @ts-ignore
-/* eslint-disable */
-import { request } from '@umijs/max';
+import { apiClient } from '@/lib/api-client'
 
-/** 登录接口 POST /api/v1/auth/login */
-export async function login(body: API.LoginParams, options?: { [key: string]: any }) {
-  return request<API.LoginResult>('/api/v1/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    data: {
-      username: body.username,
-      password: body.password,
-    },
-    skipErrorHandler: false,
-    ...(options || {}),
-  });
+// 登录请求
+export interface LoginRequest {
+  username: string
+  password: string
 }
 
-/** 获取当前用户 GET /api/v1/user/me */
-export async function currentUser(options?: { [key: string]: any }) {
-  return request<{
-    data: API.CurrentUser;
-  }>('/api/v1/user/me', {
-    method: 'GET',
-    skipErrorHandler: true,
-    ...(options || {}),
-  });
+// 登录响应
+export interface LoginResponse {
+  token: string
+  user: {
+    id: number
+    userid: string
+    name: string
+    username: string
+    created_at: string
+  }
 }
 
-/** 退出登录接口 POST /api/v1/auth/logout */
-export async function outLogin(options?: { [key: string]: any }) {
-  return request<Record<string, any>>('/api/v1/auth/logout', {
-    method: 'POST',
-    ...(options || {}),
-  });
+/**
+ * 用户登录
+ */
+export async function login(data: LoginRequest): Promise<LoginResponse> {
+  return apiClient.post<LoginResponse>('/auth/login', data) as unknown as Promise<LoginResponse>
+}
+
+/**
+ * 用户注册
+ */
+export async function register(data: {
+  username: string
+  password: string
+}): Promise<void> {
+  await apiClient.post<void>('/auth/register', data)
+}
+
+/**
+ * 用户登出
+ */
+export async function logout(): Promise<void> {
+  await apiClient.post<void>('/auth/logout')
 }

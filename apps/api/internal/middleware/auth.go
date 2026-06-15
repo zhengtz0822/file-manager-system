@@ -60,8 +60,20 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// 将用户信息存入上下文
 		c.Set("claims", claims)
-		c.Set("user_id", claims.UserID)
-		c.Set("username", claims.Username)
+
+		// 根据 Token 类型设置不同的上下文信息
+		if claims.Type == jwt.TokenTypeApp {
+			// 应用 Token
+			c.Set("token_type", "app")
+			c.Set("app_id", claims.AppID)
+			c.Set("app_name", claims.AppName)
+			c.Set("app_identifier", claims.AppIdentifier)
+		} else {
+			// 用户 Token
+			c.Set("token_type", "user")
+			c.Set("user_id", claims.UserID)
+			c.Set("username", claims.Username)
+		}
 
 		c.Next()
 	}

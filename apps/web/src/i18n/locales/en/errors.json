@@ -1,0 +1,29 @@
+{
+  "notFound": {
+    "title": "404",
+    "message": "Oops! Page Not Found!",
+    "description": "It seems like the page you're looking for does not exist or might have been removed.",
+    "goBack": "Go Back",
+    "backToHome": "Back to Home"
+  },
+  "unauthorized": {
+    "title": "401",
+    "message": "Unauthorized",
+    "description": "You don't have permission to access this resource."
+  },
+  "forbidden": {
+    "title": "403",
+    "message": "Forbidden",
+    "description": "Access to this resource is forbidden."
+  },
+  "serverError": {
+    "title": "500",
+    "message": "Internal Server Error",
+    "description": "Something went wrong on our end. Please try again later."
+  },
+  "maintenance": {
+    "title": "503",
+    "message": "Service Unavailable",
+    "description": "We're currently under maintenance. Please check back soon."
+  }
+}

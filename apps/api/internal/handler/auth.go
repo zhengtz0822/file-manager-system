@@ -22,13 +22,15 @@ func NewAuthHandler() *AuthHandler {
 
 // Login 用户登录
 // @Summary 用户登录
-// @Description 用户名密码登录获取 Token
+// @Description 使用用户名和密码登录系统，获取访问令牌
 // @Tags 认证
 // @Accept json
 // @Produce json
-// @Param request body service.LoginRequest true "登录信息"
-// @Success 200 {object} Response{data=service.LoginResponse}
-// @Router /api/v1/auth/login [post]
+// @Param request body service.LoginRequest true "登录信息" SchemaExample({"username":"admin","password":"admin123"})
+// @Success 200 {object} Response{data=service.LoginResponse} "登录成功"
+// @Failure 400 {object} Response "参数错误"
+// @Failure 401 {object} Response "用户名或密码错误"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req service.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,13 +61,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Register 用户注册
 // @Summary 用户注册
-// @Description 注册新用户
+// @Description 注册新用户账号
 // @Tags 认证
 // @Accept json
 // @Produce json
-// @Param request body service.RegisterRequest true "注册信息"
-// @Success 200 {object} Response
-// @Router /api/v1/auth/register [post]
+// @Param request body service.RegisterRequest true "注册信息" SchemaExample({"username":"newuser","password":"password123"})
+// @Success 200 {object} Response "注册成功"
+// @Failure 400 {object} Response "参数错误或用户已存在"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -89,6 +92,45 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusOK, Response{
 		Code:    200,
 		Message: "注册成功",
+	})
+}
+
+// GetAppToken 应用获取访问令牌
+// @Summary 应用获取访问令牌
+// @Description 外部应用使用应用账号和密钥获取访问令牌，用于调用需要认证的 API
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body service.AppTokenRequest true "应用认证信息" SchemaExample({"app_account":"APP_abc123","app_secret":"64位十六进制密钥"})
+// @Success 200 {object} Response{data=service.AppTokenResponse} "获取令牌成功"
+// @Failure 400 {object} Response "参数错误"
+// @Failure 401 {object} Response "应用认证失败（应用不存在、密钥错误或应用已禁用）"
+// @Router /auth/app-token [post]
+func (h *AuthHandler) GetAppToken(c *gin.Context) {
+	var req service.AppTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "参数错误",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	resp, err := h.authService.GetAppToken(&req)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, Response{
+			Code:    401,
+			Message: "应用认证失败",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "获取令牌成功",
+		Data:    resp,
 	})
 }
 

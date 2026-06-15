@@ -35,7 +35,7 @@ func NewDocumentHandler() *DocumentHandler {
 // @Security Bearer
 // @Param request body service.InitUploadRequest true "上传信息"
 // @Success 200 {object} Response{data=service.InitUploadResponse}
-// @Router /api/v1/documents/chunks/init [post]
+// @Router /documents/chunks/init [post]
 func (h *DocumentHandler) InitUpload(c *gin.Context) {
 	var req service.InitUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,7 +75,7 @@ func (h *DocumentHandler) InitUpload(c *gin.Context) {
 // @Param chunk_number formData int true "分片序号"
 // @Param file formData file true "分片文件"
 // @Success 200 {object} Response
-// @Router /api/v1/documents/chunks/upload [post]
+// @Router /documents/chunks/upload [post]
 func (h *DocumentHandler) UploadChunk(c *gin.Context) {
 	uploadID := c.PostForm("upload_id")
 	var chunkNumber int
@@ -133,8 +133,58 @@ func (h *DocumentHandler) UploadChunk(c *gin.Context) {
 // @Security Bearer
 // @Param request body service.CompleteUploadRequest true "完成上传信息"
 // @Success 200 {object} Response{data=service.CompleteUploadResponse}
-// @Router /api/v1/documents/chunks/complete [post]
+// @Router /documents/chunks/complete [post]
 func (h *DocumentHandler) CompleteUpload(c *gin.Context) {
+	// 获取账号信息（应用账号或用户名）
+	tokenType, exists := c.Get("token_type")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, Response{
+			Code:    401,
+			Message: "未授权",
+		})
+		return
+	}
+
+	var account string
+	var userID *int
+	var appID *int
+
+	if tokenType == "app" {
+		// 应用 Token - 使用应用标识
+		appIdentifier, exists := c.Get("app_identifier")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, Response{
+				Code:    401,
+				Message: "未授权",
+			})
+			return
+		}
+		account = appIdentifier.(string)
+
+		// 获取 app_id
+		if appIDValue, exists := c.Get("app_id"); exists {
+			val := appIDValue.(int)
+			appID = &val
+		}
+	} else {
+		// 用户 Token
+		username, exists := c.Get("username")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, Response{
+				Code:    401,
+				Message: "未授权",
+			})
+			return
+		}
+		account = username.(string)
+
+		// 获取 user_id
+		if userIDValue, exists := c.Get("user_id"); exists {
+			val := userIDValue.(int)
+			userID = &val
+		}
+	}
+
 	var req service.CompleteUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
@@ -144,6 +194,12 @@ func (h *DocumentHandler) CompleteUpload(c *gin.Context) {
 		})
 		return
 	}
+
+	// 设置上传人信息
+	req.Account = account
+	req.TokenType = tokenType.(string)
+	req.UserID = userID
+	req.AppID = appID
 
 	resp, err := h.docService.CompleteUpload(&req)
 	if err != nil {
@@ -171,7 +227,7 @@ func (h *DocumentHandler) CompleteUpload(c *gin.Context) {
 // @Security Bearer
 // @Param upload_id path string true "上传ID"
 // @Success 200 {object} Response
-// @Router /api/v1/documents/chunks/{upload_id} [delete]
+// @Router /documents/chunks/{upload_id} [delete]
 func (h *DocumentHandler) CancelUpload(c *gin.Context) {
 	uploadID := c.Param("upload_id")
 
@@ -190,6 +246,110 @@ func (h *DocumentHandler) CancelUpload(c *gin.Context) {
 	})
 }
 
+// UploadSingleFile 单文件上传
+// @Summary 单文件上传
+// @Description 直接上传单个文件（适用于小文件）
+// @Tags 文档上传
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param file formData file true "文件"
+// @Success 200 {object} Response{data=service.UploadSingleFileResponse}
+// @Failure 400 {object} Response "参数错误或文件类型不支持"
+// @Failure 413 {object} Response "文件大小超过限制"
+// @Router /documents/upload [post]
+func (h *DocumentHandler) UploadSingleFile(c *gin.Context) {
+	// 获取账号信息（应用账号或用户名）
+	tokenType, exists := c.Get("token_type")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, Response{
+			Code:    401,
+			Message: "未授权",
+		})
+		return
+	}
+
+	var account string
+	var userID *int
+	var appID *int
+
+	if tokenType == "app" {
+		// 应用 Token - 使用应用标识
+		appIdentifier, exists := c.Get("app_identifier")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, Response{
+				Code:    401,
+				Message: "未授权",
+			})
+			return
+		}
+		account = appIdentifier.(string)
+
+		// 获取 app_id
+		if appIDValue, exists := c.Get("app_id"); exists {
+			val := appIDValue.(int)
+			appID = &val
+		}
+	} else {
+		// 用户 Token
+		username, exists := c.Get("username")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, Response{
+				Code:    401,
+				Message: "未授权",
+			})
+			return
+		}
+		account = username.(string)
+
+		// 获取 user_id
+		if userIDValue, exists := c.Get("user_id"); exists {
+			val := userIDValue.(int)
+			userID = &val
+		}
+	}
+
+	// 获取上传的文件
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "参数错误: 未找到文件",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// 打开文件
+	fileContent, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    500,
+			Message: "文件读取失败",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer fileContent.Close()
+
+	// 调用服务层上传文件
+	resp, err := h.docService.UploadSingleFile(account, file.Filename, file.Size, fileContent, tokenType.(string), userID, appID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "上传失败",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "上传成功",
+		Data:    resp,
+	})
+}
+
 // GetDocument 获取文档信息
 // @Summary 获取文档信息
 // @Description 根据ID获取文档详细信息
@@ -198,7 +358,7 @@ func (h *DocumentHandler) CancelUpload(c *gin.Context) {
 // @Security Bearer
 // @Param id path string true "文档ID"
 // @Success 200 {object} Response{data=model.Document}
-// @Router /api/v1/documents/{id} [get]
+// @Router /documents/{id} [get]
 func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	id := c.Param("id")
 
@@ -229,7 +389,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 // @Param page_size query int true "每页数量"
 // @Param keyword query string false "搜索关键词"
 // @Success 200 {object} Response{data=service.ListDocumentsResponse}
-// @Router /api/v1/documents [get]
+// @Router /documents [get]
 func (h *DocumentHandler) ListDocuments(c *gin.Context) {
 	var req service.ListDocumentsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -266,7 +426,7 @@ func (h *DocumentHandler) ListDocuments(c *gin.Context) {
 // @Security Bearer
 // @Param id path string true "文档ID"
 // @Success 200 {object} Response
-// @Router /api/v1/documents/{id} [delete]
+// @Router /documents/{id} [delete]
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	id := c.Param("id")
 
@@ -293,7 +453,7 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 // @Security Bearer
 // @Param id path string true "文档ID"
 // @Success 200 {file} file
-// @Router /api/v1/documents/{id}/download [get]
+// @Router /documents/{id}/download [get]
 func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	id := c.Param("id")
 
@@ -333,7 +493,7 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 // @Security Bearer
 // @Param id path string true "文档ID"
 // @Success 200 {file} file
-// @Router /api/v1/documents/{id}/preview [get]
+// @Router /documents/{id}/preview [get]
 func (h *DocumentHandler) PreviewDocument(c *gin.Context) {
 	id := c.Param("id")
 

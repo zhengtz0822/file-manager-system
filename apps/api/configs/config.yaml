@@ -37,5 +37,9 @@ jwt:
   secret: "your-secret-key-change-this-in-production"
   expire_hours: 24
 
+swagger:
+  enabled: true   # 开发环境启用，生产环境设为 false
+  host: localhost:8080
+
 upload:
   chunk_expire_hours: 24  # 分片上传过期时间

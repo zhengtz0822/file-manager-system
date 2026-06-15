@@ -5,7 +5,7 @@
   "description": "文件管理系统 - Monorepo",
   "scripts": {
     "dev:api": "cd apps/api && go run cmd/server/main.go",
-    "dev:web": "cd apps/web && pnpm start:dev",
+    "dev:web": "cd apps/web && pnpm dev",
     "dev": "concurrently \"pnpm:dev:api\" \"pnpm:dev:web\"",
     "build:api": "cd apps/api && go build -o ../../bin/server cmd/server/main.go",
     "build:web": "cd apps/web && pnpm run build",

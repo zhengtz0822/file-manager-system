@@ -9,10 +9,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// TokenType Token 类型
+type TokenType string
+
+const (
+	TokenTypeUser  TokenType = "user"  // 用户 Token
+	TokenTypeApp   TokenType = "app"   // 应用 Token
+)
+
 // Claims JWT 声明
 type Claims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
+	Type          TokenType `json:"type"`            // Token 类型：user 或 app
+	UserID        int       `json:"user_id"`         // 用户 ID（用户 Token）
+	Username      string    `json:"username"`        // 用户名（用户 Token）
+	AppID         int       `json:"app_id"`          // 应用 ID（应用 Token）
+	AppName       string    `json:"app_name"`        // 应用名称（应用 Token）
+	AppIdentifier string    `json:"app_identifier"`  // 应用标识（应用 Token，用于文件存储路径）
 	jwt.RegisteredClaims
 }
 
@@ -23,11 +35,30 @@ func Init(cfg *config.JWTConfig) {
 	jwtSecret = []byte(cfg.Secret)
 }
 
-// GenerateToken 生成 Token
-func GenerateToken(userID int, username string) (string, error) {
+// GenerateUserToken 生成用户 Token
+func GenerateUserToken(userID int, username string) (string, error) {
 	claims := Claims{
+		Type:     TokenTypeUser,
 		UserID:   userID,
 		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.JWT.ExpireHours))),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+// GenerateAppToken 生成应用 Token
+func GenerateAppToken(appID int, appName string, appIdentifier string) (string, error) {
+	claims := Claims{
+		Type:          TokenTypeApp,
+		AppID:         appID,
+		AppName:       appName,
+		AppIdentifier: appIdentifier,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.JWT.ExpireHours))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -54,4 +85,9 @@ func ParseToken(tokenString string) (*Claims, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+// GenerateToken 兼容旧代码的 Token 生成方法（用户 Token）
+func GenerateToken(userID int, username string) (string, error) {
+	return GenerateUserToken(userID, username)
 }

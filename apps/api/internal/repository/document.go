@@ -43,7 +43,7 @@ func (r *DocumentRepository) Delete(id string) error {
 }
 
 // List 分页查询文档列表
-func (r *DocumentRepository) List(page, pageSize int, keyword string) ([]*model.Document, int64, error) {
+func (r *DocumentRepository) List(page, pageSize int, keyword string, appIdentifier string) ([]*model.Document, int64, error) {
 	var docs []*model.Document
 	var total int64
 
@@ -51,6 +51,13 @@ func (r *DocumentRepository) List(page, pageSize int, keyword string) ([]*model.
 
 	if keyword != "" {
 		query = query.Where("file_name LIKE ?", "%"+keyword+"%")
+	}
+
+	// 按应用标识筛选
+	if appIdentifier != "" {
+		// JOIN applications 表筛选应用标识
+		query = query.Joins("INNER JOIN applications ON documents.app_id = applications.id").
+			Where("applications.app_identifier = ? AND documents.uploaded_by = ?", appIdentifier, model.UploadedByApp)
 	}
 
 	err := query.Count(&total).Error

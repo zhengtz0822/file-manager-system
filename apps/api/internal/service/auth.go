@@ -13,12 +13,14 @@ import (
 // AuthService 认证服务
 type AuthService struct {
 	userRepo *repository.UserRepository
+	appRepo  *repository.ApplicationRepository
 }
 
 // NewAuthService 创建认证服务
 func NewAuthService() *AuthService {
 	return &AuthService{
 		userRepo: repository.NewUserRepository(),
+		appRepo:  repository.NewApplicationRepository(),
 	}
 }
 
@@ -47,8 +49,8 @@ func (s *AuthService) Login(req *LoginRequest) (*LoginResponse, error) {
 		return nil, errors.New("密码错误")
 	}
 
-	// 生成 Token
-	token, err := jwt.GenerateToken(user.ID, user.Username)
+	// 生成用户 Token
+	token, err := jwt.GenerateUserToken(user.ID, user.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -95,4 +97,55 @@ func (s *AuthService) Register(req *RegisterRequest) error {
 	}
 
 	return s.userRepo.Create(user)
+}
+
+// AppTokenRequest 应用获取令牌请求
+type AppTokenRequest struct {
+	AppAccount string `json:"app_account" binding:"required"`
+	AppSecret  string `json:"app_secret" binding:"required"`
+}
+
+// AppTokenResponse 应用令牌响应
+type AppTokenResponse struct {
+	Token string      `json:"token"`
+	App   interface{} `json:"app"`
+}
+
+// GetAppToken 应用获取访问令牌
+func (s *AuthService) GetAppToken(req *AppTokenRequest) (*AppTokenResponse, error) {
+	// 查找应用
+	app, err := s.appRepo.GetByAccount(req.AppAccount)
+	if err != nil {
+		return nil, errors.New("应用不存在")
+	}
+
+	// 验证密钥
+	if app.AppSecret != req.AppSecret {
+		return nil, errors.New("应用密钥错误")
+	}
+
+	// 检查应用状态
+	if app.Status != 1 {
+		return nil, errors.New("应用已禁用")
+	}
+
+	// 生成应用 Token
+	token, err := jwt.GenerateAppToken(app.ID, app.AppName, app.AppIdentifier)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构造响应数据
+	appData := map[string]interface{}{
+		"id":             app.ID,
+		"app_name":       app.AppName,
+		"app_identifier": app.AppIdentifier,
+		"app_account":    app.AppAccount,
+		"created_at":     app.CreatedAt,
+	}
+
+	return &AppTokenResponse{
+		Token: token,
+		App:   appData,
+	}, nil
 }

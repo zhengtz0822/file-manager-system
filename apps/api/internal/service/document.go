@@ -1,13 +1,18 @@
 package service
 
 import (
+	"io"
+	"mime/multipart"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"file-manager-service/internal/config"
 	"file-manager-service/internal/model"
 	"file-manager-service/internal/pkg/storage"
 	"file-manager-service/internal/pkg/uuid"
 	"file-manager-service/internal/repository"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // DocumentService 文档服务
@@ -97,7 +102,11 @@ func (s *DocumentService) UploadChunk(uploadID string, chunkNumber int, filePath
 
 // CompleteUploadRequest 完成上传请求
 type CompleteUploadRequest struct {
-	UploadID string `json:"upload_id" binding:"required"`
+	UploadID   string `json:"upload_id" binding:"required"`
+	Account    string `json:"account"`    // 应用标识或用户名（由后端从 Token 中自动获取，用于存储路径）
+	TokenType  string `json:"-"`          // Token 类型: user/app（由后端从 Token 中自动获取）
+	UserID     *int   `json:"-"`          // 用户ID（用户Token时有值）
+	AppID      *int   `json:"-"`          // 应用ID（应用Token时有值）
 }
 
 // CompleteUploadResponse 完成上传响应
@@ -120,7 +129,7 @@ func (s *DocumentService) CompleteUpload(req *CompleteUploadRequest) (*CompleteU
 
 	// 生成文档 ID 和存储路径
 	documentID := uuid.Generate()
-	storagePath := storage.GenerateStoragePath(documentID, chunk.FileName)
+	storagePath := storage.GenerateStoragePath(req.Account, documentID, chunk.FileName)
 
 	// 合并分片
 	if err := storage.MergeChunks(req.UploadID, chunk.TotalChunks, storagePath); err != nil {
@@ -140,6 +149,9 @@ func (s *DocumentService) CompleteUpload(req *CompleteUploadRequest) (*CompleteU
 		FileExtension: strings.TrimPrefix(filepath.Ext(chunk.FileName), "."),
 		MD5Hash:       md5Hash,
 		UploadID:      req.UploadID,
+		UploadedBy:    req.TokenType,  // user 或 app
+		UserID:        req.UserID,     // 用户ID（如果是用户上传）
+		AppID:         req.AppID,      // 应用ID（如果是应用上传）
 		Status:        model.DocumentStatusNormal,
 	}
 
@@ -181,9 +193,10 @@ func (s *DocumentService) DeleteDocument(id string) error {
 
 // ListDocuments 文档列表
 type ListDocumentsRequest struct {
-	Page     int    `form:"page" binding:"required,min=1"`
-	PageSize int    `form:"page_size" binding:"required,min=1,max=100"`
-	Keyword  string `form:"keyword"`
+	Page          int    `form:"page" binding:"required,min=1"`
+	PageSize      int    `form:"page_size" binding:"required,min=1,max=100"`
+	Keyword       string `form:"keyword"`
+	AppIdentifier string `form:"app_identifier"` // 应用标识筛选
 }
 
 // ListDocumentsResponse 文档列表响应
@@ -196,7 +209,7 @@ type ListDocumentsResponse struct {
 
 // List 获取文档列表
 func (s *DocumentService) List(req *ListDocumentsRequest) (*ListDocumentsResponse, error) {
-	docs, total, err := s.docRepo.List(req.Page, req.PageSize, req.Keyword)
+	docs, total, err := s.docRepo.List(req.Page, req.PageSize, req.Keyword, req.AppIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +234,84 @@ func (s *DocumentService) CancelUpload(uploadID string) error {
 
 	// 删除分片记录
 	return s.chunkRepo.Delete(uploadID)
+}
+
+// UploadSingleFileRequest 单文件上传请求
+type UploadSingleFileRequest struct {
+	FileName string `json:"file_name" binding:"required"`
+}
+
+// UploadSingleFileResponse 单文件上传响应
+type UploadSingleFileResponse struct {
+	DocumentID string `json:"document_id"`
+	FileName   string `json:"file_name"`
+	FileSize   int64  `json:"file_size"`
+}
+
+// UploadSingleFile 单文件上传（适用于小文件）
+func (s *DocumentService) UploadSingleFile(account string, filename string, fileSize int64, fileContent multipart.File, tokenType string, userID *int, appID *int) (*UploadSingleFileResponse, error) {
+	// 检查文件类型
+	if !storage.IsAllowedExtension(filename) {
+		return nil, ErrInvalidFileType
+	}
+
+	// 检查文件大小
+	if fileSize > config.GlobalConfig.Storage.MaxFileSize {
+		return nil, &ServiceError{Code: 400, Message: "文件大小超过限制"}
+	}
+
+	// 生成文档 ID
+	documentID := uuid.Generate()
+
+	// 生成存储路径: uploads/应用账号/yyyy-MM/文档id
+	storagePath := storage.GenerateStoragePath(account, documentID, filename)
+
+	// 创建目录
+	yearMonth := time.Now().Format("2006-01")
+	dirPath := filepath.Join(config.GlobalConfig.Storage.DocumentPath, account, yearMonth)
+	os.MkdirAll(dirPath, 0755)
+
+	// 创建目标文件
+	dst, err := os.Create(storagePath)
+	if err != nil {
+		return nil, err
+	}
+	defer dst.Close()
+
+	// 复制文件内容
+	if _, err := io.Copy(dst, fileContent); err != nil {
+		return nil, err
+	}
+
+	// 计算文件 MD5
+	md5Hash, _ := storage.GetFileMD5(storagePath)
+
+	// 创建文档记录
+	doc := &model.Document{
+		ID:            documentID,
+		FileName:      filename,
+		StoragePath:   storagePath,
+		FileSize:      fileSize,
+		FileType:      storage.GetMimeType(filename),
+		FileExtension: strings.TrimPrefix(filepath.Ext(filename), "."),
+		MD5Hash:       md5Hash,
+		UploadedBy:    tokenType,  // user 或 app
+		UserID:        userID,     // 用户ID（如果是用户上传）
+		AppID:         appID,      // 应用ID（如果是应用上传）
+		Status:        model.DocumentStatusNormal,
+	}
+
+	if err := s.docRepo.Create(doc); err != nil {
+		// 如果数据库创建失败，删除已保存的文件
+		os.Remove(storagePath)
+		return nil, err
+	}
+
+	return &UploadSingleFileResponse{
+		DocumentID: documentID,
+		FileName:   doc.FileName,
+		FileSize:   doc.FileSize,
+	}, nil
 }
 
 // 错误定义

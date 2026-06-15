@@ -14,6 +14,7 @@ type Config struct {
 	Storage  StorageConfig  `yaml:"storage"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	Upload   UploadConfig   `yaml:"upload"`
+	Swagger  SwaggerConfig  `yaml:"swagger"`
 }
 
 // ServerConfig 服务器配置
@@ -59,6 +60,12 @@ type JWTConfig struct {
 // UploadConfig 上传配置
 type UploadConfig struct {
 	ChunkExpireHours int `yaml:"chunk_expire_hours"`
+}
+
+// SwaggerConfig Swagger 配置
+type SwaggerConfig struct {
+	Enabled bool   `yaml:"enabled"` // 是否启用 Swagger
+	Host    string `yaml:"host"`    // Swagger 主机地址
 }
 
 var GlobalConfig *Config
